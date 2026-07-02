@@ -50,25 +50,56 @@ This project uses the **CIFAR-100** dataset.
 
 ---
 
-## Installation
+## Contribution Workflow
 
-Clone the repository:
+1. **Fork** this repository to your GitHub account.
+
+2. **Clone your fork** to your local machine.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/<your-username>/CIFAR100-Image-Classification.git
 cd CIFAR100-Image-Classification
 ```
 
-Install the dependencies:
+3. **Open the project** in Visual Studio Code.
 
 ```bash
-pip install -r requirements.txt
+code .
 ```
 
-or with **uv**:
+4. **Create a virtual environment** (recommended).
+
+Using `uv`:
 
 ```bash
 uv sync
 ```
 
----
+or using `pip`:
+
+```bash
+pip install -r requirements.txt
+```
+
+5. **Create a new branch** for your implementation.
+
+```bash
+git checkout -b feature/<your-feature-name>
+```
+
+6. Complete one or more of the placeholder implementations in the repository.
+
+7. Commit your changes.
+
+```bash
+git add .
+git commit -m "Implement model architecture"
+```
+
+8. Push the branch to your fork.
+
+```bash
+git push origin feature/<your-feature-name>
+```
+
+9. Open a **Pull Request** from your fork to this repository describing your implementation.
