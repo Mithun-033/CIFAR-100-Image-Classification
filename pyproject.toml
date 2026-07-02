@@ -1,7 +1,7 @@
 [project]
 name = "cifar-100-image-classification"
 version = "0.1.0"
-description = "Add your description here"
+description = "An Introductory deep learning group project that trains and evaluates image classification models on the CIFAR-100 dataset using PyTorch"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
