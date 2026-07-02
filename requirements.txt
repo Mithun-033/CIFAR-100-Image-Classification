@@ -6,3 +6,4 @@ torchinfo
 pandas
 rich
 lightning
+triton-windows

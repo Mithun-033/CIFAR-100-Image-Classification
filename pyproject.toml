@@ -13,4 +13,5 @@ dependencies = [
     "torchinfo>=1.8.0",
     "torchvision>=0.27.1",
     "tqdm>=4.68.3",
+    "triton-windows>=3.7.1.post27",
 ]
