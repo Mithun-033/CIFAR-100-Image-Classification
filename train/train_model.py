@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch.optim as optim
-from rich import panel, print
+from rich import print
+from rich.panel import Panel
 
 from model.model import Model
 from model.config import training_config
@@ -26,7 +27,7 @@ def train_model(model: Model, config: training_config):
     criterion = ...
 
     # Training loop
-    print(panel.Panel("Starting Training", style="bold green"))
+    print(Panel("Starting Training", style="bold green"))
     for epoch in range(config.num_epochs):
         model.train()
         for batch in train_loader:
