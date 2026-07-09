@@ -27,7 +27,7 @@ def train_model(model: Model, config: training_config):
     criterion = ...
 
     # Training loop
-    print(Panel.Panel("Starting Training", style="bold green"))
+    print(Panel("Starting Training", style="bold green"))
     for epoch in range(config.num_epochs):
         model.train()
         for batch in train_loader:
