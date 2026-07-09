@@ -1,11 +1,24 @@
+'''
+The Model architecture for CIFAR-100 classification task.
+A Convolutional Neural Network (CNN) is implemented.
+'''
 import torch
 import torch.nn as nn
 from config import model_config
 import torchinfo 
 
 class CIFAR100Model(nn.Module):
+    '''
+    A Convolutional Neural Network (CNN) model for CIFAR-100 classification.
+    The model consists of two convolutional layers followed by max pooling,
+    and three fully connected layers for classification.
+    '''
     def __init__(self, config):
-        
+        '''
+        Initialize the CIFAR100Model with the given configuration.
+        Args:
+            config (model_config): Configuration parameters for the model.
+        '''
         super().__init__()
 
         self.features = nn.Sequential(
@@ -46,12 +59,25 @@ class CIFAR100Model(nn.Module):
         self.apply(self._init_weights)
 
     def _init_weights(self,module):
-        if isinstance(module, nn.Conv2d or nn.Linear):
+        '''
+        Initialize the weights of the model using truncated normal distribution for Conv2d and Linear layers.
+        This can be modified to use other initialization methods as needed.
+        Args:
+            module (nn.Module): The module to initialize.
+        '''
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
             nn.init.trunc_normal__(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
+        '''
+        Forward pass of the model.
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, 3, 32, 32).
+        Returns:
+            torch.Tensor: Output tensor of shape (batch_size, num_classes).
+        '''
         x = self.features(x)
         x = self.classifier(x)
         return x
