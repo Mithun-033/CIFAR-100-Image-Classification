@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from config import model_config
+import torchinfo 
 
 class CIFAR100Model(nn.Module):
     def __init__(self, config):
@@ -45,10 +46,10 @@ class CIFAR100Model(nn.Module):
         self.apply(self._init_weights)
 
     def _init_weights(self,module):
-        ''' Initialize the weights of the model. '''
-
-        ...
-        ...
+        if isinstance(module, nn.Conv2d or nn.Linear):
+            nn.init.trunc_normal__(module.weight, std=0.02)
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
 
     def forward(self, x):
         x = self.features(x)
@@ -57,4 +58,4 @@ class CIFAR100Model(nn.Module):
 
 if __name__ == "__main__":
     model = CIFAR100Model(config = model_config())
-    
+    torchinfo.summary(model, input_size=(1, 3, 32, 32))
