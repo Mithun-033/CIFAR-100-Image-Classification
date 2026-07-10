@@ -23,7 +23,7 @@ train_dataset = CIFAR100(root='./data', train=True, download=True, transform=tra
 val_dataset = CIFAR100(root='./data', train=False, download=True, transform=val_transforms)
 
 class get_dataloaders():
-    def __init__(self, train_dataset, val_dataset, batch_size, num_workers):
+    def __init__(self, train_dataset = train_dataset, val_dataset = val_dataset, batch_size = 64, num_workers = 4):
         ''' 
         Initialize the dataloader. 
         Args:
@@ -63,3 +63,4 @@ class get_dataloaders():
             shuffle=False,
             num_workers=self.num_workers
         )
+
