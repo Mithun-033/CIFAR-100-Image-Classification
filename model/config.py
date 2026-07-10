@@ -7,7 +7,6 @@ class model_config:
     conv2_out_channels: int = 64
     kernel_size: int = 3
 
-
     pool_stride :int = 2
     pool_kernel :int = 2
 
@@ -15,15 +14,15 @@ class model_config:
     hidden_features1: int = 1028
     hidden_features2: int = 512
 
-    dropout_rate : float = 0.3
+    dropout_rate : float = 0.2
     
 
 @dataclass
 class training_config:
     # dataloader parameters
     batch_size: int = 250
-    num_workers: int = 4
+    num_workers: int = 0
     # training parameters
-    learning_rate: float = 1e-2
-    num_epochs: int = 100
-    weight_decay: float = 1e-4
+    learning_rate: float = 2e-3
+    num_epochs: int = 50
+    weight_decay: float = 1e-2
