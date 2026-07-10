@@ -4,7 +4,7 @@ A Convolutional Neural Network (CNN) is implemented.
 '''
 import torch
 import torch.nn as nn
-from config import model_config
+from .config import model_config
 import torchinfo 
 
 class CIFAR100Model(nn.Module):
@@ -66,7 +66,7 @@ class CIFAR100Model(nn.Module):
             module (nn.Module): The module to initialize.
         '''
         if isinstance(module, (nn.Conv2d, nn.Linear)):
-            nn.init.trunc_normal__(module.weight, std=0.02)
+            nn.init.trunc_normal_(module.weight, std=0.02)
             if module.bias is not None:
                 nn.init.constant_(module.bias, 0)
 
