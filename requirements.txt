@@ -7,3 +7,4 @@ pandas
 rich
 lightning
 triton-windows
+scikit-learn
