@@ -237,11 +237,12 @@ class CIFAR100Model(nn.Module):
 
             nn.Linear(config.block4_channels,config.hidden_features1),
             nn.GELU(),
+            nn.Dropout(config.dropout),
             nn.Linear(config.hidden_features1, config.num_classes)
         )
 
         self.apply(self._init_weights)
-        
+
     def _init_weights(self, module):
         if isinstance(module, (nn.Conv2d, nn.Linear)):
             nn.init.trunc_normal_(module.weight, std=0.02)
