@@ -48,7 +48,9 @@ class get_dataloaders():
             self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            persistent_workers= True if self.num_workers > 0 else False,
+            pin_memory= True
         )
 
     def get_val_loader(self):
@@ -61,6 +63,8 @@ class get_dataloaders():
             self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.num_workers
+            num_workers=self.num_workers,
+            persistent_workers=True if self.num_workers > 0 else False,
+            pin_memory= True
         )
 
