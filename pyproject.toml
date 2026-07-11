@@ -3,16 +3,25 @@ name = "cifar-100-image-classification"
 version = "0.1.0"
 description = "An Introductory deep learning group project that trains and evaluates image classification models on the CIFAR-100 dataset using PyTorch"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
+
 dependencies = [
-    "lightning>=2.6.5",
     "numpy>=2.5.0",
     "pandas>=3.0.3",
     "rich>=15.0.0",
     "scikit-learn>=1.9.0",
-    "torch>=2.12.1",
+    "torch==2.11.0",
+    "torchvision==0.26.0",
     "torchinfo>=1.8.0",
-    "torchvision>=0.27.1",
     "tqdm>=4.68.3",
     "triton-windows>=3.7.1.post27",
 ]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
