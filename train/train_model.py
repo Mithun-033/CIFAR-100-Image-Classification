@@ -5,11 +5,13 @@ from rich import print
 from rich.panel import Panel
 from tqdm import tqdm
 import json
+from torchinfo import summary
 
 from model.model import CIFAR100Model
 from model.config import model_config, training_config
 from data.dataloaders import get_dataloaders
 
+torch.set_float32_matmul_precision("high")
 
 def train_model(model: nn.Module, config: training_config):
     """
@@ -21,7 +23,9 @@ def train_model(model: nn.Module, config: training_config):
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
-    model.to(device)
+    model.to(device, memory_format = torch.channels_last)
+
+    model = torch.compile(model)
 
     get_loaders = get_dataloaders(batch_size=config.batch_size, num_workers=config.num_workers)
     train_loader = get_loaders.get_train_loader()
@@ -37,7 +41,7 @@ def train_model(model: nn.Module, config: training_config):
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
         T_max=config.num_epochs * len(train_loader),
-        eta_min=config.learning_rate * 0.1
+        eta_min=config.learning_rate * 0.05
     )
     train_loss_lst = []
     val_loss_lst = []
@@ -59,11 +63,11 @@ def train_model(model: nn.Module, config: training_config):
 
         for images, labels in train_bar:
 
-            images = images.to(device)
-            labels = labels.to(device)
+            images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
+            labels = labels.to(device, non_blocking = True)
 
             optimizer.zero_grad()
-
+        
             outputs = model(images)
             loss = criterion(outputs, labels)
 
@@ -97,8 +101,8 @@ def train_model(model: nn.Module, config: training_config):
     
             with torch.no_grad():
                 for images, labels in val_loader:
-                    images = images.to(device)
-                    labels = labels.to(device)
+                    images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
+                    labels = labels.to(device, non_blocking = True)
     
                     outputs = model(images)
     
@@ -138,5 +142,6 @@ def train_model(model: nn.Module, config: training_config):
 
 if __name__ == "__main__":
     model = CIFAR100Model(model_config())
+    summary(model, input_size=(1, 3, 32, 32))
     train_model(model, training_config())
 
