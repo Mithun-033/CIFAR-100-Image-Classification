@@ -1,11 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torchinfo import summary
+from torch.optim.swa_utils import AveragedModel,get_ema_multi_avg_fn
 from rich import print
 from rich.panel import Panel
 from tqdm import tqdm
 import json
-from torchinfo import summary
+
 
 from model.model import CIFAR100Model
 from model.config import model_config, training_config
@@ -24,25 +26,39 @@ def train_model(model: nn.Module, config: training_config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
     model.to(device, memory_format = torch.channels_last)
-
+    
     model = torch.compile(model)
-
+    ema_model = AveragedModel(
+        model,
+        multi_avg_fn=get_ema_multi_avg_fn(decay=0.999)
+    )
+    
     get_loaders = get_dataloaders(batch_size=config.batch_size, num_workers=config.num_workers)
     train_loader = get_loaders.get_train_loader()
     val_loader = get_loaders.get_val_loader()
 
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
     optimizer = optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
         weight_decay=config.weight_decay
     )
-
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
+    warmup_scheduler = optim.lr_scheduler.LinearLR(
         optimizer,
-        T_max=config.num_epochs * len(train_loader),
-        eta_min=config.learning_rate * 0.05
+        start_factor=0.1,
+        total_iters= 0.05* len(train_loader) * config.num_epochs
     )
+    cosine_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer,
+        T_max=config.num_epochs * len(train_loader) * 0.95,
+        eta_min=config.learning_rate * 0.02
+    )
+    scheduler = optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[warmup_scheduler, cosine_scheduler],
+        milestones=[0.05 * len(train_loader) * config.num_epochs]
+    )
+    
     train_loss_lst = []
     val_loss_lst = []
     print(Panel.fit("Started Training ...", style="bold green"))
@@ -74,6 +90,7 @@ def train_model(model: nn.Module, config: training_config):
             loss.backward()
             
             optimizer.step()
+            ema_model.update_parameters(model)
             scheduler.step()
 
             running_loss += loss.item()
@@ -93,7 +110,7 @@ def train_model(model: nn.Module, config: training_config):
         train_acc = 100 * correct / total
 
         if (epoch + 1 )% 10 == 0:
-            model.eval()
+            ema_model.eval()
     
             val_loss = 0.0
             val_correct = 0
@@ -104,7 +121,7 @@ def train_model(model: nn.Module, config: training_config):
                     images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
                     labels = labels.to(device, non_blocking = True)
     
-                    outputs = model(images)
+                    outputs = ema_model(images)
     
                     loss = criterion(outputs, labels)
     
@@ -137,7 +154,7 @@ def train_model(model: nn.Module, config: training_config):
     with open("val_loss.json", "w") as f:
         json.dump(val_loss_lst, f)
 
-    torch.save(model.state_dict(), "model.pt")
+    torch.save(ema_model.state_dict(), "model.pt")
     print(Panel.fit("Training Complete and model saved!", style="bold green"))
 
 if __name__ == "__main__":
