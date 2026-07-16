@@ -51,7 +51,7 @@ class CNNStem(nn.Module):
             config.block1_channels,
             kernel_size = config.stem_kernel_size,
             stride = config.stem_stride,
-            padding = 0
+            padding = 1
             )
         
         self.norm = layernorm(config.block1_channels)
@@ -104,12 +104,32 @@ class GRN(nn.Module):
         relative_norm = global_norm / (global_norm.mean(dim = 1, keepdim = True) + 1e-6)
         
         return self.gamma * (x * relative_norm) + self.beta + x
+    
+class DropPath(nn.Module):
+    def __init__(self,drop_prob = 0.0):
+        super().__init__()
+        self.drop_prob = drop_prob
 
+    def forward(self,x):
+        if self.drop_prob == 0.0 or not self.training:
+            return x
+        shape=(x.shape[0],1,1,1)  # (B,1,1,1)
+        keep_prob = 1 - self.drop_prob
+
+        drop_tensor = keep_prob + torch.rand(
+            shape,
+            device = x.device,
+            dtype=x.dtype   
+        )
+        drop_tensor.floor_()
+        drop_tensor.div_(keep_prob)  # scales the output images which were not dropped higher 
+        return x * drop_tensor
+    
 class Convnext(nn.Module):
     '''
     The Convnext block as described in the paper.
     '''
-    def __init__(self, config, channels):
+    def __init__(self, config, channels, drop_prob):
         '''
         Intialises the class
         Args:
@@ -131,6 +151,7 @@ class Convnext(nn.Module):
             # the output. 
         )
         self.norm = layernorm(channels)
+        self.drop_path = DropPath(drop_prob=drop_prob)
         self.expand = nn.Conv2d(
             in_channels = channels,
             out_channels = channels * config.expansion_ratio,
@@ -160,6 +181,7 @@ class Convnext(nn.Module):
         out = self.activation(out)
         out = self.grn(out)
         out = self.shrink_back(out)
+        out=self.drop_path(out)
 
         out += x
         return out
@@ -178,6 +200,7 @@ class downsampler(nn.Module):
             channels (int) : No of input channels
         '''
         super().__init__()
+        self.norm = layernorm(channels)
         self.downsample = nn.Conv2d(
             in_channels = channels,
             out_channels = channels * 2,
@@ -194,7 +217,7 @@ class downsampler(nn.Module):
         Returns:    
             x (tensor) : The downsampled tensor
         '''
-        return self.downsample(x)
+        return self.downsample(self.norm(x))
     
 class CIFAR100Model(nn.Module):
     '''
@@ -209,38 +232,44 @@ class CIFAR100Model(nn.Module):
         super().__init__()
         self.stem = CNNStem(config)
 
+        drop_probs=torch.linspace(
+            0,
+            config.drop_path_rate,
+            config.num_block1+
+            config.num_block2+
+            config.num_block3+
+            config.num_block4
+            ).tolist() # torch.linspace creates discrete values seperated by a equal distance, eg : torch.linspace(0,1,5) = [0,0.25,0.5,0.75,0.1]
+        
+        idx = 0
         self.block1 = nn.ModuleList(
-            Convnext(config,config.block1_channels) for _ in range(config.num_block1)
+            Convnext(config,config.block1_channels, drop_prob= drop_probs[idx + i]) for i in range(config.num_block1)
         )    
-
+        idx += config.num_block1
         self.downsampler1 = downsampler(config.block1_channels)
 
         self.block2 = nn.ModuleList(
-            Convnext(config,config.block2_channels) for _ in range(config.num_block2)
+            Convnext(config,config.block2_channels, drop_prob= drop_probs[idx + i]) for i in range(config.num_block2)
         )    
-
+        idx += config.num_block2
         self.downsampler2 = downsampler(config.block2_channels)
 
         self.block3 = nn.ModuleList(
-            Convnext(config,config.block3_channels) for _ in range(config.num_block3)
+            Convnext(config,config.block3_channels, drop_prob= drop_probs[idx + i]) for i in range(config.num_block3)
         )    
-
+        idx += config.num_block3
         self.downsampler3 = downsampler(config.block3_channels)
 
         self.block4 = nn.ModuleList(
-            Convnext(config,config.block4_channels) for _ in range(config.num_block4)
+            Convnext(config,config.block4_channels, drop_prob= drop_probs[idx + i]) for i in range(config.num_block4)
         )    
 
-        self.head = nn.Sequential(
+        self.head=nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-
-            nn.Linear(config.block4_channels,config.hidden_features1),
-            nn.GELU(),
-            nn.Dropout(config.dropout),
-            nn.Linear(config.hidden_features1, config.num_classes)
+            nn.LayerNorm(config.block4_channels),
+            nn.Linear(config.block4_channels, config.num_classes)
         )
-
         self.apply(self._init_weights)
 
     def _init_weights(self, module):

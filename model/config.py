@@ -7,8 +7,9 @@ class model_config:
     convnext_kernel_size : int = 7
     convnext_stride = 1
 
-    stem_kernel_size : int = 4
-    stem_stride : int = 4
+    stem_kernel_size : int = 3
+    stem_stride : int = 1
+
     expansion_ratio : int = 4
 
     block1_channels : int = 96
@@ -21,16 +22,16 @@ class model_config:
     num_block3 : int = 9
     num_block4 : int = 3
 
-    hidden_features1 : int = 1024
-    hidden_features2 : int = 512
+    dropout : float = 0.3
+    drop_path_rate : float = 0.2
 
-    dropout : float = 0.15
 @dataclass
 class training_config:
     # dataloader parameters
-    batch_size: int = 250
+    batch_size: int = 125
     num_workers: int = 2
     # training parameters
     learning_rate: float = 1e-4
-    num_epochs: int = 50
+    num_epochs: int = 300
     weight_decay: float = 1e-1
+    label_smoothing: float = 0.1
