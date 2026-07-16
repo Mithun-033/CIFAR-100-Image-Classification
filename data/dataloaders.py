@@ -7,16 +7,29 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR100
 
 
-train_transforms = transforms.Compose([
+train_transforms =transforms.Compose([
     transforms.RandomCrop(32, padding=4),
     transforms.RandomHorizontalFlip(),
+    transforms.RandAugment(num_ops=2, magnitude=9),
     transforms.ToTensor(),
-    transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    transforms.Normalize(
+        mean=(0.5071, 0.4867, 0.4408),
+        std=(0.2675, 0.2565, 0.2761)
+    ),
+    transforms.RandomErasing(
+        p=0.25,
+        scale=(0.02, 0.2),
+        ratio=(0.3, 3.3),
+        value="random"
+    ),
 ])
 
-val_transforms = transforms.Compose([
+val_transforms=transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize((0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761))
+    transforms.Normalize(
+        mean=(0.5071, 0.4867, 0.4408),
+        std=(0.2675, 0.2565, 0.2761)
+    ),
 ])
 
 train_dataset = CIFAR100(root='./data', train=True, download=True, transform=train_transforms)
