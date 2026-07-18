@@ -22,7 +22,6 @@ class model_config:
     num_block3 : int = 9
     num_block4 : int = 3
 
-    dropout : float = 0.3
     drop_path_rate : float = 0.2
 
 @dataclass

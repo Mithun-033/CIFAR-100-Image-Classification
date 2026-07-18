@@ -16,6 +16,7 @@ dependencies = [
     "tqdm>=4.68.3",
     "triton-windows>=3.7.1.post27",
     "optuna>=4.9.0",
+    "torchmetrics>=1.9.0",
 ]
 
 [[tool.uv.index]]

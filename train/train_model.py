@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torchinfo import summary
 from torch.optim.swa_utils import AveragedModel,get_ema_multi_avg_fn
+from torchmetrics import Accuracy, Recall, F1Score, Precision
+
 from rich import print
 from rich.panel import Panel
 from tqdm import tqdm
@@ -14,6 +16,65 @@ from model.config import model_config, training_config
 from data.dataloaders import get_dataloaders
 
 torch.set_float32_matmul_precision("high")
+
+def train_step(model, criterion, optimizer, train_loader, config, device, epoch, scheduler, ema_model):
+    model.train()
+
+    running_loss = 0.0
+    correct = 0
+    total = 0
+    train_bar = tqdm(
+        train_loader,
+        desc=f"Epoch [{epoch+1}/{config.num_epochs}]",
+        
+    )
+    for images, labels in train_bar:
+        images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
+        labels = labels.to(device, non_blocking = True)
+        optimizer.zero_grad()
+    
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        
+        optimizer.step()
+        ema_model.update_parameters(model)
+        scheduler.step()
+
+        running_loss += loss.item()
+        _, predicted = outputs.max(1)
+        total += labels.size(0)
+        correct += predicted.eq(labels).sum().item()
+        train_bar.set_postfix(
+            loss=loss.item(),
+            acc=f"{100*correct/total:.2f}%"
+        )
+    return running_loss / len(train_loader), 100 * correct / total
+
+def eval_step(ema_model, criterion, val_loader, device):
+    ema_model.eval()
+    
+    val_loss = 0.0
+    acc = Accuracy(task="multiclass", num_classes=100).to(device)
+    precision = Precision(task="multiclass", num_classes=100).to(device)
+    recall = Recall(task="multiclass", num_classes=100).to(device)
+    f1 = F1Score(task="multiclass", num_classes=100).to(device)
+
+    with torch.no_grad():
+        for images, labels in val_loader:
+            images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
+            labels = labels.to(device, non_blocking = True)
+
+            outputs = ema_model(images)
+            loss = criterion(outputs, labels)
+            val_loss += loss.item()
+            
+            acc.update(outputs, labels)
+            precision.update(outputs, labels)
+            recall.update(outputs, labels)
+            f1.update(outputs, labels)
+
+    return val_loss / len(val_loader), acc.compute().item(), precision.compute().item(), recall.compute().item(), f1.compute().item()
 
 def train_model(model: nn.Module, config: training_config):
     """
@@ -59,84 +120,13 @@ def train_model(model: nn.Module, config: training_config):
         milestones=[0.05 * len(train_loader) * config.num_epochs]
     )
     
-    train_loss_lst = []
-    val_loss_lst = []
     print(Panel.fit("Started Training ...", style="bold green"))
 
     for epoch in range(config.num_epochs):
-
-        model.train()
-
-        running_loss = 0.0
-        correct = 0
-        total = 0
-
-        train_bar = tqdm(
-            train_loader,
-            desc=f"Epoch [{epoch+1}/{config.num_epochs}]",
-            
-        )
-
-        for images, labels in train_bar:
-
-            images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
-            labels = labels.to(device, non_blocking = True)
-
-            optimizer.zero_grad()
-        
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-
-            loss.backward()
-            
-            optimizer.step()
-            ema_model.update_parameters(model)
-            scheduler.step()
-
-            running_loss += loss.item()
-            _, predicted = outputs.max(1)
-
-            total += labels.size(0)
-
-            correct += predicted.eq(labels).sum().item()
-
-            train_bar.set_postfix(
-                loss=loss.item(),
-                acc=f"{100*correct/total:.2f}%"
-            )
-
-        train_loss = running_loss / len(train_loader)
-        train_loss_lst.append(train_loss)
-        train_acc = 100 * correct / total
+        train_loss, train_acc = train_step(model, criterion, optimizer, train_loader, config, device, epoch, scheduler, ema_model)
 
         if (epoch + 1 )% 10 == 0:
-            ema_model.eval()
-    
-            val_loss = 0.0
-            val_correct = 0
-            val_total = 0
-    
-            with torch.no_grad():
-                for images, labels in val_loader:
-                    images = images.to(device, non_blocking = True, memory_format = torch.channels_last)
-                    labels = labels.to(device, non_blocking = True)
-    
-                    outputs = ema_model(images)
-    
-                    loss = criterion(outputs, labels)
-    
-                    val_loss += loss.item()
-    
-                    _, predicted = outputs.max(1)
-    
-                    val_total += labels.size(0)
-    
-                    val_correct += predicted.eq(labels).sum().item()
-    
-            val_loss /= len(val_loader)
-            val_loss_lst.append(val_loss)
-            val_acc = 100 * val_correct / val_total
-    
+            val_loss, val_acc, _, _, _ = eval_step(ema_model, criterion, val_loader, device)
             print(
                 Panel.fit(
                     f"""
@@ -149,11 +139,6 @@ def train_model(model: nn.Module, config: training_config):
             Val Acc    : {val_acc:.2f}%
                             """,style="cyan"))
         
-    with open("train_loss.json", "w") as f:
-        json.dump(train_loss_lst, f)
-    with open("val_loss.json", "w") as f:
-        json.dump(val_loss_lst, f)
-
     torch.save(ema_model.state_dict(), "model.pt")
     print(Panel.fit("Training Complete and model saved!", style="bold green"))
 
